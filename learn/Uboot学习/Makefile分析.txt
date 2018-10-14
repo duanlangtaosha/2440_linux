@@ -1,0 +1,8 @@
+100ask24x0_config       :       unconfig
+        @$(MKCONFIG) $(@:_config=) arm arm920t 100ask24x0 NULL s3c24x0
+        
+
+        
+#CURDIR 当前目录，这个就是源码的要目录下
+SRCTREE		:= $(CURDIR)
+MKCONFIG	:= $(SRCTREE)/mkconfig

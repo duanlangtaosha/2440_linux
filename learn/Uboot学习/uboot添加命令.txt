@@ -1,0 +1,33 @@
+
+#define Struct_Section  __attribute__ ((unused,section (".u_boot_cmd")))
+
+U_BOOT_CMD(
+ 	bootm,	CFG_MAXARGS,	1,	do_bootm,
+ 	"bootm   - boot application image from memory\n",
+ 	"[addr [arg ...]]\n    - boot application image stored in memory\n"
+ 	"\tpassing arguments 'arg ...'; when booting a Linux kernel,\n"
+ 	"\t'arg' can be the address of an initrd image\n"
+#ifdef CONFIG_OF_FLAT_TREE
+	"\tWhen booting a Linux kernel which requires a flat device-tree\n"
+	"\ta third argument is required which is the address of the of the\n"
+	"\tdevice-tree blob. To boot that kernel without an initrd image,\n"
+	"\tuse a '-' for the second argument. If you do not pass a third\n"
+	"\ta bd_info struct will be passed instead\n"
+#endif
+);
+
+
+#define U_BOOT_CMD(name,maxargs,rep,cmd,usage,help) \
+cmd_tbl_t __u_boot_cmd_##name Struct_Section = {#name, maxargs, rep, cmd, usage, help}
+
+cmd_tbl_t __u_boot_cmd_bootm __attribute__ ((unused,section (".u_boot_cmd"))) = {bootm,CFG_MAXARGS, 1, do_bootm,
+    "bootm   - boot application image from memory\n", 
+    "[addr [arg ...]]\n    - boot application image stored in memory\n"
+    "\tpassing arguments 'arg ...'; when booting a Linux kernel,\n"
+    "\t'arg' can be the address of an initrd image\n"
+    #ifdef CONFIG_OF_FLAT_TREE
+    "\tWhen booting a Linux kernel which requires a flat device-tree\n"
+    "\ta third argument is required which is the address of the of the\n"
+    "\tdevice-tree blob. To boot that kernel without an initrd image,\n"
+    "\tuse a '-' for the second argument. If you do not pass a third\n"
+    "\ta bd_info struct will be passed instead\n"}
