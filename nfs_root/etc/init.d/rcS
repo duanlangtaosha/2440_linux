@@ -1,0 +1,14 @@
+
+#mount -t proc none /proc
+
+
+#from /etc/ftab
+# 挂载所有的ftab文件中的文件系统
+mount -a
+
+#udev机制，自动创建设备节点，这里使用的是busybox中自带的一个mdev
+mkdir /dev/pts
+mount -t devpts devpts /dev/pts
+echo /bin/mdev > /proc/sys/kernel/hotplug
+mdev -s
+

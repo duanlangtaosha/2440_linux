@@ -1,9 +1,10 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/fs.h>
-#include <linux/init.h>
+//#include <linux/init.h>
 
 
+static int major = 0;
 
 static int __s3c2440_led_open(struct inode *inode, struct file *file)
 {
@@ -23,7 +24,10 @@ static int __s3c2440_led_write()
 }
 
 static struct file_operations first_drv_fops = {
-    .owner  =   THIS_MODULE,    /* 这是一个宏，推向编译模块时自动创建的__this_module变量 */
+    .owner  =   THIS_MODULE,    /* 这是一个宏，推向编译模块时自动创建的__this_module变量 
+                                 * 当模块make的时候会自动生成一个xxx.mod.c的文件，该文件
+                                 * 中定义了__this_module的变量。
+                                 */
     .open   =   __s3c2440_led_open,     
 	.write	=	__s3c2440_led_write,	   
 };

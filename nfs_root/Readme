@@ -1,0 +1,23 @@
+注意:此虚拟文件系统的busybox和其glibc使用的编译工具是arm-linux-3.4.5，所以如果是编译器换了可能造成内核启动不了的后果。
+
+挂接网络文件系统的条件:
+1. Linux服务器要允许该目录被挂接；
+2. 开发板自己去挂接。
+
+要允计某个目录被挂接就要安装nfs服务
+在Linux服务器上，编辑/etc/exports文件如:
+/home/yang/1_linux_learn/nfs_root *(rw,sync,no_root_squash)
+
+其中/home/yang/1_linux_learn/nfs_root目录就是允计该目录被外部挂接。
+并且启动nfs服务，启动服务的命令是 sudo /etc/init.d/nfs-kernel-server restart
+一般来说启动服务后就可以挂载了，可以先在服务器上测试一下(在服务器上自己挂自己), sudo mount -t nfs 192.168.1.40:/home/yang/1_linux_learn/nfs_root /mnt  挂载到mnt
+开发板挂接测试 sudo mount -t nfs -o nolock 192.168.1.40:/home/yang/1_linux_learn/nfs_root /mnt
+当然开发板的这个测试是从flash上启动后再去挂载的，证明开发板上已经有一个文件系统了，那么怎么直接从NFS文件系统挂载呢？这就得修改命令行参数(即uboot的启动参数bootargs,在linux源码的要目录下的Documents下有一个nfsroot.txt中有相应的说明),参数如下：
+root=/dev/nfs
+nfsroot=[<server-ip>:]<root-dir>[,<nfs-options>]
+ip=<client-ip>:<server-ip>:<gw-ip>:<netmask>:<hostname>:<device>:<autoconf>
+
+则 设置uboot参数如下：
+set bootargs noinitrd root=/dev/nfs nfsroot=192.168.1.40:/home/yang/1_linux_learn/nfs_root ip=192.168.1.11:192.168.1.1:255.255.255.0::eth0:off init=/linuxrc console=ttySAC0
+
+设置好启动参数就可以从NFS服务器上启动了
