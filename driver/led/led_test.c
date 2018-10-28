@@ -7,11 +7,32 @@
 /* firstdrvtest on
   * firstdrvtest off
   */
+
 int main(int argc, char **argv)
 {
-	int fd;
-	int val = 1;
-	fd = open("/dev/led", O_RDWR);
+    int fd;
+    int val = 1;
+    fd = open("/dev/led", O_RDWR);
+
+    if (fd < 0) {
+        printf ("can't open!");
+        return 0;
+    }
+
+    if (argc != 2) {
+        printf ("%s <on|off>", argv[0]);
+        return 0;
+    }
+
+    if (strcmp(argv[1] , "on") == 0) {
+        val = 1;
+    } else {
+        val = 0;
+    }
+
+    write (fd, &val, 4);
+
+    
     printf("%d\n", fd);
     
 	write(fd, &val, 4);
