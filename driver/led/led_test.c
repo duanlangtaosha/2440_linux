@@ -12,7 +12,8 @@ int main(int argc, char **argv)
 {
     int fd;
     int val = 1;
-    fd = open("/dev/led", O_RDWR);
+    int  i = 0;
+    fd = open("/dev/xyz", O_RDWR);
 
     if (fd < 0) {
         printf ("can't open!");
@@ -30,8 +31,10 @@ int main(int argc, char **argv)
         val = 0;
     }
 
-    write (fd, &val, 4);
-
+    /* 打印传递进来的参数  */
+    for (i = 0; i < argc; i++) {
+        printf ("argc[%d] = %s \n", i, argv[i]);
+    }
     
     printf("%d\n", fd);
     
