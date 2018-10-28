@@ -22,6 +22,8 @@
 *   GPBCON   0x56000010
 *   GPBDAT   0x56000014
 *   GPBUP    0x56000018
+*
+*   添加功能：可以打开4盏LED灯, leds设备控制全部的LED灯，LED0 控制第1盏，.... LED3控制第3盏
 */
 
 
@@ -38,7 +40,7 @@ static volatile unsigned long *clkcon = NULL;
 
 static int __s3c2440_led_open(struct inode *inode, struct file *file)
 {
-    printk("led open!\n");
+    printk("led open!\n");    
 
     /* 将LED的引脚配置为输出引脚  */
     //*gpbcon = (1 << 10) | (1 << 12) | (1 << 14) | (1 << 16);
@@ -55,6 +57,14 @@ static int __s3c2440_led_write(struct file *p_file, const char __user *p_buf, si
 {
     int val = 0, i = 0;
     uint8_t copy_num = 0;
+
+    /* 通过file可以找到设备号，这里找的是次设备号，struct file的定义在linux/fs.h中
+     * f_dentry是一个宏 #define f_dentry	 f_path.dentry ，这个宏还是在struct file的结构体中
+     * dentry的定义是在linux/dcache中定义的。所以说这个和open的驱动中获取设备号的方式有点不同。
+     */
+    int minor = MINOR(p_file->f_dentry->d_inode->i_rdev);
+    
+    printk("%d\n", minor);
     
     printk("led write!\n");
 
