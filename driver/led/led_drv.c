@@ -30,7 +30,8 @@
 
 static int major = 0;
 static struct class *led_class = NULL; 
-static struct class_device * led_class_dev = NULL;
+static struct class_device * leds_class_dev = NULL;
+static struct class_device * led_class_dev[4];
 static volatile unsigned long *gpbcon = NULL;
 static volatile unsigned long *gpbdat = NULL;
 static volatile unsigned long *gpbup = NULL;
@@ -42,12 +43,41 @@ static int __s3c2440_led_open(struct inode *inode, struct file *file)
 {
     printk("led open!\n");    
 
-    /* 将LED的引脚配置为输出引脚  */
-    //*gpbcon = (1 << 10) | (1 << 12) | (1 << 14) | (1 << 16);
-    *gpbcon &= ~((0x3<<(5*2)) | (0x3<<(6*2)) | (0x3<<(7*2)) | (0x3<<(8*2)));
-	*gpbcon |= ((0x1<<(5*2)) | (0x1<<(6*2)) | (0x1<<(7*2)) | (0x1<<(8*2)));
-    *gpbup  = 0;
+    /* 获取次设备号，根据应用层所打开的设备文件来控制相应的LED灯 */
+    int minor = MINOR(inode->i_rdev); //MINOR(inode->i_cdev);
 
+    switch (minor) {
+       /* leds */
+       case  0:
+            /* 配置引脚为输出 */
+            *gpbcon &= ~((0x3<<(5*2)) | (0x3<<(6*2)) | (0x3<<(7*2)) | (0x3<<(8*2)));
+            *gpbcon |= ((0x1<<(5*2)) | (0x1<<(6*2)) | (0x1<<(7*2)) | (0x1<<(8*2)));
+            *gpbup  = ~((0x3<<(5*2)) | (0x3<<(6*2)) | (0x3<<(7*2)) | (0x3<<(8*2)));
+             break;
+       case 1:
+            *gpbcon &= ~((0x3 << (5 * 2)));
+            *gpbcon |= ((0x1 << (5 * 2)));
+            *gpbup  = ~(0x3<<(5 * 2));
+             break;
+       case 2:
+            *gpbcon &= ~((0x3 << (6 * 2)));
+            *gpbcon |=  ((0x1 << (6 * 2)));
+            *gpbup  = ~(0x3<<(6 * 2));
+             break;
+
+       case 3:
+            *gpbcon &= ~((0x3 << (7 * 2)));
+            *gpbcon |=  ((0x1 << (7 * 2)));
+            *gpbup  = ~(0x3<<(7 * 2));
+             break;
+
+       case 4:
+            *gpbcon &= ~((0x3 << (8 * 2)));
+            *gpbcon |=  ((0x1 << (8 * 2)));
+            *gpbup  = ~(0x3<<(8 * 2));
+             break;
+
+    }
 
     /* 必须要加上return，如果将return去掉可能引发段错误 */
     return 0;
@@ -112,7 +142,13 @@ static int __s3c2440_led_init(void)
     major = register_chrdev(0, "led_drv", &first_drv_fops); // 注册, 告诉内核
 
     led_class =class_create(THIS_MODULE, "led_drv");
-    led_class_dev = class_device_create(led_class, NULL, MKDEV(major, 0), NULL, "xyz"); /* 这个LL就是在/dev/xyz 中的设备了 */
+    leds_class_dev = class_device_create(led_class, NULL, MKDEV(major, 0), NULL, "leds"); /* 这个LL就是在/dev/xyz 中的设备了 */
+
+    /* 创建出led0 ~led3 这四个设备 */
+    for (i = 0; i < 4; i++) {
+        led_class_dev[i] = class_device_create(led_class, NULL, MKDEV(major, i + 1), NULL, "leds[%d]", i);
+
+    }
 
     /* 物理地址到虚拟地址的映射 */
     gpbcon = (volatile unsigned long *)ioremap(0x56000010, 16);
@@ -136,7 +172,11 @@ static void __s3c2440_led_exit(void)
     /* 去除驱动的注册  */
     unregister_chrdev(100, "led_drv"); // 卸载
 
-    class_device_unregister(led_class_dev);
+    class_device_unregister(leds_class_dev);
+
+    for (i = 0; i < 4; i++) {
+        class_device_unregister(leds_class_dev[i]);
+    }
 
     /* 释放创建的类 */
     class_destroy(led_class);
