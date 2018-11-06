@@ -106,15 +106,47 @@ static int __s3c2440_led_write(struct file *p_file, const char __user *p_buf, si
         return -1;
     }
 
-    if (1 == val) {
-        /* 点灯 */
-    *gpbdat|= (1 << 5) | (1 << 6) | (1 << 7) | (1 << 8);
-    printk("led on !\n");
-    } else {
-        /* 灭灯 */
-    *gpbdat &= ~((1 << 5) | (1 << 6) | (1 << 7) | (1 << 8));
-    printk("led off !\n");
+    switch (minor) {
+
+        case 0:
+        {
+            s3c2410_gpio_setpin(S3C2410_GPB5, (val & 0x1));
+            s3c2410_gpio_setpin(S3C2410_GPB6, (val & 0x1));
+            s3c2410_gpio_setpin(S3C2410_GPB7, (val & 0x1));
+            s3c2410_gpio_setpin(S3C2410_GPB8, (val & 0x1));
+            break;
+        }
+        case 1:
+        {
+            s3c2410_gpio_setpin(S3C2410_GPB5, (val & 0x1));
+            break;
+        }
+        case 2:
+        {
+            s3c2410_gpio_setpin(S3C2410_GPB6, (val & 0x1));
+            break;
+        }
+        case 3:
+        {
+            s3c2410_gpio_setpin(S3C2410_GPB7, (val & 0x1));
+            break;
+        }
+        case 4:
+        {
+            s3c2410_gpio_setpin(S3C2410_GPB8, (val & 0x1));
+            break;
+        }
     }
+
+//    if (1 == val) {
+//        /* 点灯 */
+//    *gpbdat|= (1 << 5) | (1 << 6) | (1 << 7) | (1 << 8);
+//    printk("led on !\n");
+//    } else {
+//        /* 灭灯 */
+//    *gpbdat &= ~((1 << 5) | (1 << 6) | (1 << 7) | (1 << 8));
+//    printk("led off !\n");
+//    }
 
     printk("*clkcon %x\n", *clkcon);
     printk("*gpbcon %x\n", *gpbcon);
@@ -136,13 +168,14 @@ static struct file_operations first_drv_fops = {
 
 static int __s3c2440_led_init(void)
 {
+    int i = 0;
     printk("led_init!\n");
 
     //当主设备号写0，则系统会自动给分配一个主设备号，会在主设备号数组中找一个空缺
     major = register_chrdev(0, "led_drv", &first_drv_fops); // 注册, 告诉内核
 
     led_class =class_create(THIS_MODULE, "led_drv");
-    leds_class_dev = class_device_create(led_class, NULL, MKDEV(major, 0), NULL, "leds"); /* 这个LL就是在/dev/xyz 中的设备了 */
+    leds_class_dev = class_device_create(led_class, NULL, MKDEV(major, 0), NULL, "leds"); /* 这个leds就是在/dev/leds 中的设备了 */
 
     /* 创建出led0 ~led3 这四个设备 */
     for (i = 0; i < 4; i++) {
@@ -169,13 +202,15 @@ static int __s3c2440_led_init(void)
 
 static void __s3c2440_led_exit(void)
 {
+    int i = 0;
+
     /* 去除驱动的注册  */
     unregister_chrdev(100, "led_drv"); // 卸载
 
     class_device_unregister(leds_class_dev);
 
     for (i = 0; i < 4; i++) {
-        class_device_unregister(leds_class_dev[i]);
+        class_device_unregister(led_class_dev[i]);
     }
 
     /* 释放创建的类 */
