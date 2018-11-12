@@ -3,7 +3,7 @@
 #include <linux/fs.h>
 #include <linux/init.h>
 
-/* class ç›¸å…³çš„ç±»çš„å‡½æ•°æ˜¯é€šè¿‡extern å¼•ç”¨çš„æ–¹å¼æ”¾åœ¨device.hæ–‡ä»¶ä¸­ */
+/* class Ïà¹ØµÄÀàµÄº¯ÊıÊÇÍ¨¹ıextern ÒıÓÃµÄ·½Ê½·ÅÔÚdevice.hÎÄ¼şÖĞ */
 #include <linux/device.h>
 #include <asm-arm/io.h>
 #include <asm-arm/uaccess.h>
@@ -12,7 +12,7 @@
 
 
 /*
-*   å¤©åµŒ2440çš„LEDå¯¹åº”çš„æ¥å£
+*   ÌìÇ¶2440µÄLED¶ÔÓ¦µÄ½Ó¿Ú
 *   LED1 ----- GPB5
 *   LED2 ----- GPB6
 *   LED3 ------GPB7
@@ -23,10 +23,11 @@
 *   GPBDAT   0x56000014
 *   GPBUP    0x56000018
 *
-*   æ·»åŠ åŠŸèƒ½ï¼šå¯ä»¥æ‰“å¼€4ç›LEDç¯, ledsè®¾å¤‡æ§åˆ¶å…¨éƒ¨çš„LEDç¯ï¼ŒLED0 æ§åˆ¶ç¬¬1ç›ï¼Œ.... LED3æ§åˆ¶ç¬¬3ç›
+*   Ìí¼Ó¹¦ÄÜ£º¿ÉÒÔ´ò¿ª4ÕµLEDµÆ, ledsÉè±¸¿ØÖÆÈ«²¿µÄLEDµÆ£¬LED0 ¿ØÖÆµÚ1Õµ£¬.... LED3¿ØÖÆµÚ3Õµ
 */
 
-
+#define LED_MAJOR  0
+#define DEVICE_NAME "led"   /* ¼ÓÔØÄ£Ê½ºó£¬Ö´ĞĞ¡±cat /proc/devices¡±ÃüÁî¿´µ½µÄÉè±¸Ãû³Æ */
 
 static int major = 0;
 static struct class *led_class = NULL; 
@@ -43,13 +44,13 @@ static int __s3c2440_led_open(struct inode *inode, struct file *file)
 {
     printk("led open!\n");    
 
-    /* è·å–æ¬¡è®¾å¤‡å·ï¼Œæ ¹æ®åº”ç”¨å±‚æ‰€æ‰“å¼€çš„è®¾å¤‡æ–‡ä»¶æ¥æ§åˆ¶ç›¸åº”çš„LEDç¯ */
+    /* »ñÈ¡´ÎÉè±¸ºÅ£¬¸ù¾İÓ¦ÓÃ²ãËù´ò¿ªµÄÉè±¸ÎÄ¼şÀ´¿ØÖÆÏàÓ¦µÄLEDµÆ */
     int minor = MINOR(inode->i_rdev); //MINOR(inode->i_cdev);
 
     switch (minor) {
        /* leds */
        case  0:
-            /* é…ç½®å¼•è„šä¸ºè¾“å‡º */
+            /* ÅäÖÃÒı½ÅÎªÊä³ö */
             *gpbcon &= ~((0x3<<(5*2)) | (0x3<<(6*2)) | (0x3<<(7*2)) | (0x3<<(8*2)));
             *gpbcon |= ((0x1<<(5*2)) | (0x1<<(6*2)) | (0x1<<(7*2)) | (0x1<<(8*2)));
             *gpbup  = ~((0x3<<(5*2)) | (0x3<<(6*2)) | (0x3<<(7*2)) | (0x3<<(8*2)));
@@ -79,7 +80,7 @@ static int __s3c2440_led_open(struct inode *inode, struct file *file)
 
     }
 
-    /* å¿…é¡»è¦åŠ ä¸Šreturnï¼Œå¦‚æœå°†returnå»æ‰å¯èƒ½å¼•å‘æ®µé”™è¯¯ */
+    /* ±ØĞëÒª¼ÓÉÏreturn£¬Èç¹û½«returnÈ¥µô¿ÉÄÜÒı·¢¶Î´íÎó */
     return 0;
 }
 
@@ -88,9 +89,9 @@ static int __s3c2440_led_write(struct file *p_file, const char __user *p_buf, si
     int val = 0, i = 0;
     uint8_t copy_num = 0;
 
-    /* é€šè¿‡fileå¯ä»¥æ‰¾åˆ°è®¾å¤‡å·ï¼Œè¿™é‡Œæ‰¾çš„æ˜¯æ¬¡è®¾å¤‡å·ï¼Œstruct fileçš„å®šä¹‰åœ¨linux/fs.hä¸­
-     * f_dentryæ˜¯ä¸€ä¸ªå® #define f_dentry	 f_path.dentry ï¼Œè¿™ä¸ªå®è¿˜æ˜¯åœ¨struct fileçš„ç»“æ„ä½“ä¸­
-     * dentryçš„å®šä¹‰æ˜¯åœ¨linux/dcacheä¸­å®šä¹‰çš„ã€‚æ‰€ä»¥è¯´è¿™ä¸ªå’Œopençš„é©±åŠ¨ä¸­è·å–è®¾å¤‡å·çš„æ–¹å¼æœ‰ç‚¹ä¸åŒã€‚
+    /* Í¨¹ıfile¿ÉÒÔÕÒµ½Éè±¸ºÅ£¬ÕâÀïÕÒµÄÊÇ´ÎÉè±¸ºÅ£¬struct fileµÄ¶¨ÒåÔÚlinux/fs.hÖĞ
+     * f_dentryÊÇÒ»¸öºê #define f_dentry	 f_path.dentry £¬Õâ¸öºê»¹ÊÇÔÚstruct fileµÄ½á¹¹ÌåÖĞ
+     * dentryµÄ¶¨ÒåÊÇÔÚlinux/dcacheÖĞ¶¨ÒåµÄ¡£ËùÒÔËµÕâ¸öºÍopenµÄÇı¶¯ÖĞ»ñÈ¡Éè±¸ºÅµÄ·½Ê½ÓĞµã²»Í¬¡£
      */
     int minor = MINOR(p_file->f_dentry->d_inode->i_rdev);
     
@@ -98,10 +99,10 @@ static int __s3c2440_led_write(struct file *p_file, const char __user *p_buf, si
     
     printk("led write!\n");
 
-    /* ç”¨æˆ·ç©ºé—´å‘å†…æ ¸ç©ºé—´ä¼ é€’æ•°æ®  ï¼Œcopy_to_user å†…æ ¸ç©ºé—´å‘ç”¨æˆ·ç©ºé—´ä¼ é€’æ•°æ® */
+    /* ÓÃ»§¿Õ¼äÏòÄÚºË¿Õ¼ä´«µİÊı¾İ  £¬copy_to_user ÄÚºË¿Õ¼äÏòÓÃ»§¿Õ¼ä´«µİÊı¾İ */
     copy_num = copy_from_user(&val, p_buf, count);
 
-    /* å¦‚æœæ‹·è´çš„å€¼ä¸å¯¹åˆ™è¿”å›-1 */
+    /* Èç¹û¿½±´µÄÖµ²»¶ÔÔò·µ»Ø-1 */
     if (copy_num == count) {
         return -1;
     }
@@ -138,74 +139,94 @@ static int __s3c2440_led_write(struct file *p_file, const char __user *p_buf, si
         }
     }
 
-//    if (1 == val) {
-//        /* ç‚¹ç¯ */
-//    *gpbdat|= (1 << 5) | (1 << 6) | (1 << 7) | (1 << 8);
-//    printk("led on !\n");
-//    } else {
-//        /* ç­ç¯ */
-//    *gpbdat &= ~((1 << 5) | (1 << 6) | (1 << 7) | (1 << 8));
-//    printk("led off !\n");
-//    }
+//    printk("*clkcon %x\n", *clkcon);
+//    printk("*gpbcon %x\n", *gpbcon);
+//    printk("*gpbdat %x\n", *gpbdat);
 
-    printk("*clkcon %x\n", *clkcon);
-    printk("*gpbcon %x\n", *gpbcon);
-    printk("*gpbdat %x\n", *gpbdat);
-
-    /* å¿…é¡»è¦åŠ ä¸Šreturnï¼Œå¦‚æœå°†returnå»æ‰å¯èƒ½å¼•å‘æ®µé”™è¯¯ */
+    /* ±ØĞëÒª¼ÓÉÏreturn£¬Èç¹û½«returnÈ¥µô¿ÉÄÜÒı·¢¶Î´íÎó */
     return 0;
 }
 
 static struct file_operations first_drv_fops = {
-    .owner  =   THIS_MODULE,    /* è¿™æ˜¯ä¸€ä¸ªå®ï¼Œæ¨å‘ç¼–è¯‘æ¨¡å—æ—¶è‡ªåŠ¨åˆ›å»ºçš„__this_moduleå˜é‡ 
-                                 * å½“æ¨¡å—makeçš„æ—¶å€™ä¼šè‡ªåŠ¨ç”Ÿæˆä¸€ä¸ªxxx.mod.cçš„æ–‡ä»¶ï¼Œè¯¥æ–‡ä»¶
-                                 * ä¸­å®šä¹‰äº†__this_moduleçš„å˜é‡ã€‚
+    .owner  =   THIS_MODULE,    /* ÕâÊÇÒ»¸öºê£¬ÍÆÏò±àÒëÄ£¿éÊ±×Ô¶¯´´½¨µÄ__this_module±äÁ¿
+                                 * µ±Ä£¿émakeµÄÊ±ºò»á×Ô¶¯Éú³ÉÒ»¸öxxx.mod.cµÄÎÄ¼ş£¬¸ÃÎÄ¼ş
+                                 * ÖĞ¶¨ÒåÁË__this_moduleµÄ±äÁ¿¡£
                                  */
     .open   =   __s3c2440_led_open,     
 	.write	=	__s3c2440_led_write,	   
 };
 
 
-static int __s3c2440_led_init(void)
+static int __init __s3c2440_led_init(void)
 {
-    int i = 0;
+    int minor = 0;
     printk("led_init!\n");
 
-    //å½“ä¸»è®¾å¤‡å·å†™0ï¼Œåˆ™ç³»ç»Ÿä¼šè‡ªåŠ¨ç»™åˆ†é…ä¸€ä¸ªä¸»è®¾å¤‡å·ï¼Œä¼šåœ¨ä¸»è®¾å¤‡å·æ•°ç»„ä¸­æ‰¾ä¸€ä¸ªç©ºç¼º
-    major = register_chrdev(0, "led_drv", &first_drv_fops); // æ³¨å†Œ, å‘Šè¯‰å†…æ ¸
+    /* ×¢²á×Ö·ûÉè±¸
+     * ²ÎÊıÎªÖ÷Éè±¸ºÅ¡¢Éè±¸Ãû×Ö¡¢file_operations½á¹¹£»
+     * ÕâÑù£¬Ö÷Éè±¸ºÅ¾ÍºÍ¾ßÌåµÄfile_operations½á¹¹ÁªÏµÆğÀ´ÁË£¬
+     * ²Ù×÷Ö÷Éè±¸ÎªLED_MAJORµÄÉè±¸ÎÄ¼şÊ±£¬¾Í»áµ÷ÓÃs3c24xx_leds_fopsÖĞµÄÏà¹Ø³ÉÔ±º¯Êı
+     * LED_MAJOR¿ÉÒÔÉèÎª0£¬±íÊ¾ÓÉÄÚºË×Ô¶¯·ÖÅäÖ÷Éè±¸ºÅ
+     */
+    major = register_chrdev(LED_MAJOR, "led_drv", &first_drv_fops); // ×¢²á, ¸æËßÄÚºË
 
-    led_class =class_create(THIS_MODULE, "led_drv");
-    leds_class_dev = class_device_create(led_class, NULL, MKDEV(major, 0), NULL, "leds"); /* è¿™ä¸ªledså°±æ˜¯åœ¨/dev/leds ä¸­çš„è®¾å¤‡äº† */
-
-    /* åˆ›å»ºå‡ºled0 ~led3 è¿™å››ä¸ªè®¾å¤‡ */
-    for (i = 0; i < 4; i++) {
-        led_class_dev[i] = class_device_create(led_class, NULL, MKDEV(major, i + 1), NULL, "leds[%d]", i);
-
+    /* Éè±¸Ã»ÓĞ×¢²á³É¹¦ */
+    if (major < 0) {
+    	printk(DEVICE_NAME"can't register major number\n");
+    	return major;
     }
 
-    /* ç‰©ç†åœ°å€åˆ°è™šæ‹Ÿåœ°å€çš„æ˜ å°„ */
+    led_class =class_create(THIS_MODULE, "led_drv");
+    if (IS_ERR(led_class)) {
+        /* ÅĞ¶Ïled_classµÄµØÖ·ÊÇ·ñÓĞĞ§ */
+        return PTR_ERR(led_class);
+    }
+
+    leds_class_dev = class_device_create(led_class, NULL, MKDEV(major, 0), NULL, "leds"); /* Õâ¸öleds¾ÍÊÇÔÚ/dev/leds ÖĞµÄÉè±¸ÁË */
+
+    /* ´´½¨³öled0 ~led3 ÕâËÄ¸öÉè±¸ */
+    for (minor = 0; minor < 4; minor++) {
+        led_class_dev[minor] = class_device_create(led_class, NULL, MKDEV(major, minor + 1), NULL, "led%d", minor);
+
+        /* IS_ERR ¼ì²â´«µİ½øÈ¥µÄµØÖ·ÊÇ·ñÊÇ´óÓÚ(unsigned long)(-4095) , Èç¹û´óÓÚ·µ»ØTRUE
+         * ¼´IS_ERR·µ»ØÕæ¡£
+         *
+         * likely ºÍ unlikelyÖ»ÊÇÒ»¸öĞŞÊÎ£¬if(likely(a > b)) ºÍ if(a > b) µÄĞ§¹ûÊÇÒ»ÑùµÄ
+         * Ö»ÊÇ¼ÓÉÏlikelyÊÇ³ÌĞòÔ±¸æËß±àÒëÆ÷£¬a > b ÎªÕæµÄ¿ÉÄÜĞÔ´óÒ»Ğ©£¬ÔÚ±àÒë¹ı³ÌÖĞ¿ÉÄÜ½ô¸ú×ÅÇ°ÃæµÄ
+         * ´úÂë£¬´Ó¶øÌá¸ßcacheµÄÃüÖĞÂÊ£¬·´Ö®unlikelyÈçif(unlikely(a > b)) ºÍ if (a > b)
+         * µÄĞ§¹ûÒ²ÊÇÒ»ÑùµÄ£¬Ö»ÊÇunlikely»á¸æËß±àÒëÆ÷,a > bÎª¼ÙµÄ¿ÉÄÜĞÔ´óÒ»Ğ©£¬±àÒëÆ÷»á²»½«Õâ¸ö·ÖÖ§
+         * ÓëÉÏÃæµÄ´úÂë¿é·ÅÔÚÒ»Æğ¡£
+         */
+        if (unlikely(IS_ERR(led_class_dev[minor]))) {
+
+            /* PTR_ERR »á½«Ö¸Õë×ª»»Îª³£Êı£¬Èç(long)ptr */
+            return PTR_ERR(led_class_dev[minor]);
+        }
+    }
+
+    /* ÎïÀíµØÖ·µ½ĞéÄâµØÖ·µÄÓ³Éä */
     gpbcon = (volatile unsigned long *)ioremap(0x56000010, 16);
     clkcon = (volatile unsigned long *)ioremap(0x4c00000c, 16);
     gpbdat = gpbcon + 1;
     gpbup  = gpbdat + 1;
-    printk("gpbcon %x\n", (unsigned int)gpbcon);
-    printk("gpbdat %x\n", (unsigned int)gpbdat);
-    printk("clkcon %x\n", (unsigned int)clkcon);
-    printk("*clkcon %x\n", *clkcon);
-    printk("*gpbcon %x\n", *gpbcon);
-    printk("*gpbdat %x\n", *gpbdat);
+//    printk("gpbcon %x\n", (unsigned int)gpbcon);
+//    printk("gpbdat %x\n", (unsigned int)gpbdat);
+//    printk("clkcon %x\n", (unsigned int)clkcon);
+//    printk("*clkcon %x\n", *clkcon);
+//    printk("*gpbcon %x\n", *gpbcon);
+//    printk("*gpbdat %x\n", *gpbdat);
 
-    *gpbdat|= (5 << 1) | (6 << 1) | (7 << 1) | (8 << 1);
+    *gpbdat |= (5 << 1) | (6 << 1) | (7 << 1) | (8 << 1);
 
     return 0;
 }
 
-static void __s3c2440_led_exit(void)
+static void __exit __s3c2440_led_exit(void)
 {
     int i = 0;
 
-    /* å»é™¤é©±åŠ¨çš„æ³¨å†Œ  */
-    unregister_chrdev(100, "led_drv"); // å¸è½½
+    /* È¥³ıÇı¶¯µÄ×¢²á  */
+    unregister_chrdev(100, "led_drv"); // Ğ¶ÔØ
 
     class_device_unregister(leds_class_dev);
 
@@ -213,20 +234,27 @@ static void __s3c2440_led_exit(void)
         class_device_unregister(led_class_dev[i]);
     }
 
-    /* é‡Šæ”¾åˆ›å»ºçš„ç±» */
+    /* ÊÍ·Å´´½¨µÄÀà */
     class_destroy(led_class);
 
-    /* é‡Šæ”¾è™šæ‹Ÿåœ°å€çš„æ˜ å°„ */
+    /* ÊÍ·ÅĞéÄâµØÖ·µÄÓ³Éä */
     iounmap(gpbcon);
     printk("led_exit!\n");
 
 }
 
 
-
+/* insmod Ê±µ÷ÓÃ__s3c2440_led_init */
 module_init(__s3c2440_led_init);
+
+/* rmmod Ê±µ÷ÓÃ__s3c2440_led_exit */
 module_exit(__s3c2440_led_exit);
 
+
+/* ÃèÊöÇı¶¯³ÌĞòµÄÒ»Ğ©ĞÅÏ¢£¬²»ÊÇ±ØĞëµÄ */
+MODULE_AUTHOR("duanlangtaosha");
+MODULE_VERSION("0.1.0");
+MODULE_DESCRIPTION("S3C2410/S3C2440 LED Driver");
 MODULE_LICENSE("GPL");
 
 
