@@ -9,5 +9,5 @@ clean:
 	rm -rf modules.order
 
 #编译成模块
-obj-m	+= led_drv.o
+obj-m	+= led_drv.o led_dev.o
 

@@ -9,6 +9,7 @@
 #include <asm-arm/uaccess.h>
 #include <asm/arch/regs-gpio.h>
 #include <asm/hardware.h>
+#include <linux/platform_device.h>
 
 
 /*
@@ -37,12 +38,14 @@ static volatile unsigned long *gpbcon = NULL;
 static volatile unsigned long *gpbdat = NULL;
 static volatile unsigned long *gpbup = NULL;
 static volatile unsigned long *clkcon = NULL;
+static int pin;
 
 
 
 static int __s3c2440_led_open(struct inode *inode, struct file *file)
 {
     printk("led open!\n");    
+	#if 0
 
     /* 获取次设备号，根据应用层所打开的设备文件来控制相应的LED灯 */
     int minor = MINOR(inode->i_rdev); //MINOR(inode->i_cdev);
@@ -79,6 +82,9 @@ static int __s3c2440_led_open(struct inode *inode, struct file *file)
              break;
 
     }
+#endif
+	*gpbcon  &= ~(0x3 << (pin * 2));
+	*gpbcon  |=  (0x1 << (pin * 2));
 
     /* 必须要加上return，如果将return去掉可能引发段错误 */
     return 0;
@@ -102,6 +108,13 @@ static int __s3c2440_led_write(struct file *p_file, const char __user *p_buf, si
     /* 用户空间向内核空间传递数据  ，copy_to_user 内核空间向用户空间传递数据 */
     copy_num = copy_from_user(&val, p_buf, count);
 
+	if (val == 1) {
+		*gpbdat &= ~(1 << pin);
+	} else {
+		*gpbdat |=  (1 << pin);
+	}
+
+#if 0
     /* 如果拷贝的值不对则返回-1 */
     if (copy_num == count) {
         return -1;
@@ -138,11 +151,7 @@ static int __s3c2440_led_write(struct file *p_file, const char __user *p_buf, si
             break;
         }
     }
-
-//    printk("*clkcon %x\n", *clkcon);
-//    printk("*gpbcon %x\n", *gpbcon);
-//    printk("*gpbdat %x\n", *gpbdat);
-
+#endif
     /* 必须要加上return，如果将return去掉可能引发段错误 */
     return 0;
 }
@@ -157,72 +166,80 @@ static struct file_operations first_drv_fops = {
 };
 
 
-static int __init __s3c2440_led_init(void)
+static int gpio_leds_probe (struct platform_device *pdev)
 {
-    int minor = 0;
-    printk("led_init!\n");
+	int minor = 0;
+	printk("led_init!\n");
+	struct resource *res = NULL;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-    /* 注册字符设备
-     * 参数为主设备号、设备名字、file_operations结构；
-     * 这样，主设备号就和具体的file_operations结构联系起来了，
-     * 操作主设备为LED_MAJOR的设备文件时，就会调用s3c24xx_leds_fops中的相关成员函数
-     * LED_MAJOR可以设为0，表示由内核自动分配主设备号
-     */
-    major = register_chrdev(LED_MAJOR, "led_drv", &first_drv_fops); // 注册, 告诉内核
 
-    /* 设备没有注册成功 */
-    if (major < 0) {
-    	printk(DEVICE_NAME"can't register major number\n");
-    	return major;
-    }
+    gpbcon = (volatile unsigned long *)ioremap(res->start, res->end - res->start + 1);
+	gpbdat = gpbcon + 1;
 
-    led_class =class_create(THIS_MODULE, "led_drv");
-    if (IS_ERR(led_class)) {
-        /* 判断led_class的地址是否有效 */
-        return PTR_ERR(led_class);
-    }
+	res    = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	pin    = res->start;
+	
+	/* 注册字符设备
+	 * 参数为主设备号、设备名字、file_operations结构；
+	 * 这样，主设备号就和具体的file_operations结构联系起来了，
+	 * 操作主设备为LED_MAJOR的设备文件时，就会调用s3c24xx_leds_fops中的相关成员函数
+	 * LED_MAJOR可以设为0，表示由内核自动分配主设备号
+	 */
+	major = register_chrdev(LED_MAJOR, "led_drv", &first_drv_fops); // 注册, 告诉内核
 
-    leds_class_dev = class_device_create(led_class, NULL, MKDEV(major, 0), NULL, "leds"); /* 这个leds就是在/dev/leds 中的设备了 */
+	/* 设备没有注册成功 */
+	if (major < 0) {
+		printk(DEVICE_NAME"can't register major number\n");
+		return major;
+	}
 
-    /* 创建出led0 ~led3 这四个设备 */
-    for (minor = 0; minor < 4; minor++) {
-        led_class_dev[minor] = class_device_create(led_class, NULL, MKDEV(major, minor + 1), NULL, "led%d", minor);
+	led_class =class_create(THIS_MODULE, "led_drv");
+	if (IS_ERR(led_class)) {
+		/* 判断led_class的地址是否有效 */
+		return PTR_ERR(led_class);
+	}
 
-        /* IS_ERR 检测传递进去的地址是否是大于(unsigned long)(-4095) , 如果大于返回TRUE
-         * 即IS_ERR返回真。
-         *
-         * likely 和 unlikely只是一个修饰，if(likely(a > b)) 和 if(a > b) 的效果是一样的
-         * 只是加上likely是程序员告诉编译器，a > b 为真的可能性大一些，在编译过程中可能紧跟着前面的
-         * 代码，从而提高cache的命中率，反之unlikely如if(unlikely(a > b)) 和 if (a > b)
-         * 的效果也是一样的，只是unlikely会告诉编译器,a > b为假的可能性大一些，编译器会不将这个分支
-         * 与上面的代码块放在一起。
-         */
-        if (unlikely(IS_ERR(led_class_dev[minor]))) {
+	leds_class_dev = class_device_create(led_class, NULL, MKDEV(major, 0), NULL, "leds"); /* 这个leds就是在/dev/leds 中的设备了 */
+#if 0
 
-            /* PTR_ERR 会将指针转换为常数，如(long)ptr */
-            return PTR_ERR(led_class_dev[minor]);
-        }
-    }
+	/* 创建出led0 ~led3 这四个设备 */
+	for (minor = 0; minor < 4; minor++) {
+		led_class_dev[minor] = class_device_create(led_class, NULL, MKDEV(major, minor + 1), NULL, "led%d", minor);
 
-    /* 物理地址到虚拟地址的映射 */
-    gpbcon = (volatile unsigned long *)ioremap(0x56000010, 16);
-    clkcon = (volatile unsigned long *)ioremap(0x4c00000c, 16);
-    gpbdat = gpbcon + 1;
-    gpbup  = gpbdat + 1;
-//    printk("gpbcon %x\n", (unsigned int)gpbcon);
-//    printk("gpbdat %x\n", (unsigned int)gpbdat);
-//    printk("clkcon %x\n", (unsigned int)clkcon);
-//    printk("*clkcon %x\n", *clkcon);
-//    printk("*gpbcon %x\n", *gpbcon);
-//    printk("*gpbdat %x\n", *gpbdat);
+		/* IS_ERR 检测传递进去的地址是否是大于(unsigned long)(-4095) , 如果大于返回TRUE
+		 * 即IS_ERR返回真。
+		 *
+		 * likely 和 unlikely只是一个修饰，if(likely(a > b)) 和 if(a > b) 的效果是一样的
+		 * 只是加上likely是程序员告诉编译器，a > b 为真的可能性大一些，在编译过程中可能紧跟着前面的
+		 * 代码，从而提高cache的命中率，反之unlikely如if(unlikely(a > b)) 和 if (a > b)
+		 * 的效果也是一样的，只是unlikely会告诉编译器,a > b为假的可能性大一些，编译器会不将这个分支
+		 * 与上面的代码块放在一起。
+		 */
+		if (unlikely(IS_ERR(led_class_dev[minor]))) {
 
-    *gpbdat |= (5 << 1) | (6 << 1) | (7 << 1) | (8 << 1);
+			/* PTR_ERR 会将指针转换为常数，如(long)ptr */
+			return PTR_ERR(led_class_dev[minor]);
+		}
+	}
 
-    return 0;
+	/* 物理地址到虚拟地址的映射 */
+	gpbcon = (volatile unsigned long *)ioremap(0x56000010, 16);
+	clkcon = (volatile unsigned long *)ioremap(0x4c00000c, 16);
+	gpbdat = gpbcon + 1;
+	gpbup  = gpbdat + 1;
+
+	*gpbdat |= (5 << 1) | (6 << 1) | (7 << 1) | (8 << 1);
+#endif
+
+	return 0;
+
+
 }
 
-static void __exit __s3c2440_led_exit(void)
+static int gpio_leds_remove (struct platform_device *pdev)
 {
+#if 0
     int i = 0;
 
     /* 去除驱动的注册  */
@@ -239,8 +256,32 @@ static void __exit __s3c2440_led_exit(void)
 
     /* 释放虚拟地址的映射 */
     iounmap(gpbcon);
+#endif
     printk("led_exit!\n");
 
+}
+
+
+struct platform_driver gpio_leds_device_driver = {
+	.probe		= gpio_leds_probe,
+	.remove		= __devexit_p(gpio_leds_remove),
+	.driver		= {
+		.name	= "leds",
+	}
+};
+
+
+static int __init __s3c2440_led_init(void)
+{
+
+return platform_driver_register(&gpio_leds_device_driver);
+
+}
+
+static void __exit __s3c2440_led_exit(void)
+{
+
+return platform_driver_unregister(&gpio_leds_device_driver);
 }
 
 
