@@ -12,8 +12,10 @@
 #include <linux/platform_device.h>
 
 
-static void led_release(struct device * dev)
+static int led_release(struct device * dev)
 {
+	printk("device rm!\n");
+	return 0;
 }
 
 
@@ -65,7 +67,7 @@ static int __init __s3c2440_led_init(void)
 static void __exit __s3c2440_led_exit(void)
 {
 
-	return platform_driver_unregister(&leds_device);
+	return platform_device_unregister(&leds_device);
 }
 
 

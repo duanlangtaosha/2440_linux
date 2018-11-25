@@ -239,24 +239,24 @@ static int gpio_leds_probe (struct platform_device *pdev)
 
 static int gpio_leds_remove (struct platform_device *pdev)
 {
-#if 0
+
     int i = 0;
 
     /* 去除驱动的注册  */
     unregister_chrdev(100, "led_drv"); // 卸载
 
     class_device_unregister(leds_class_dev);
-
+#if 0
     for (i = 0; i < 4; i++) {
         class_device_unregister(led_class_dev[i]);
     }
+#endif
 
     /* 释放创建的类 */
     class_destroy(led_class);
 
     /* 释放虚拟地址的映射 */
     iounmap(gpbcon);
-#endif
     printk("led_exit!\n");
 
 }
@@ -264,7 +264,7 @@ static int gpio_leds_remove (struct platform_device *pdev)
 
 struct platform_driver gpio_leds_device_driver = {
 	.probe		= gpio_leds_probe,
-	.remove		= __devexit_p(gpio_leds_remove),
+	.remove		= gpio_leds_remove,
 	.driver		= {
 		.name	= "leds",
 	}
@@ -273,15 +273,12 @@ struct platform_driver gpio_leds_device_driver = {
 
 static int __init __s3c2440_led_init(void)
 {
-
-return platform_driver_register(&gpio_leds_device_driver);
-
+	return platform_driver_register(&gpio_leds_device_driver);
 }
 
 static void __exit __s3c2440_led_exit(void)
 {
-
-return platform_driver_unregister(&gpio_leds_device_driver);
+	return platform_driver_unregister(&gpio_leds_device_driver);
 }
 
 
